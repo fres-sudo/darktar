@@ -35,7 +35,7 @@ Thank you for your interest in contributing to Darktar! This document provides g
 
 5. **Run the server**:
    ```bash
-   dart run bin/server.dart
+   dart run
    ```
 
 6. **Verify it's working**:
@@ -48,7 +48,7 @@ Thank you for your interest in contributing to Darktar! This document provides g
 ```
 darktar/
 ├── bin/
-│   └── server.dart          # Entry point
+│   └── darktar.dart          # Entry point
 ├── lib/
 │   ├── api/                 # HTTP API layer
 │   │   ├── handlers/        # Route handlers
