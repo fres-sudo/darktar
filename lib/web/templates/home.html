@@ -1,0 +1,59 @@
+<div class="hero">
+  <h1>Private Dart Packages</h1>
+  <p>Your team's internal package registry</p>
+
+  <form class="search-form" action="/" method="get">
+    <input
+      type="search"
+      name="q"
+      placeholder="Search packages..."
+      value="{{query}}"
+      class="search-input"
+      hx-get="/"
+      hx-trigger="keyup changed delay:300ms"
+      hx-target=".packages-grid"
+      hx-select=".packages-grid"
+    >
+    <button type="submit" class="search-button">
+      🔍
+    </button>
+  </form>
+</div>
+
+<section class="packages-section">
+  <div class="section-header">
+    <h2>{{#query}}Results for "{{query}}"{{/query}}{{^query}}Recent Packages{{/query}}</h2>
+    <span class="package-count">{{packageCount}} package{{#hasMultiple}}s{{/hasMultiple}}</span>
+  </div>
+
+  {{#hasPackages}}
+  <div class="packages-grid">
+    {{#packages}}
+    <a href="/packages/{{name}}" class="package-card">
+      <div class="package-header">
+        <h3 class="package-name">{{name}}</h3>
+        <span class="package-version">v{{latestVersion}}</span>
+      </div>
+      <p class="package-description">{{description}}</p>
+      <div class="package-meta">
+        <span class="meta-item">📅 {{publishedAt}}</span>
+      </div>
+    </a>
+    {{/packages}}
+  </div>
+  {{/hasPackages}}
+
+  {{^hasPackages}}
+  <div class="empty-state">
+    <div class="empty-icon">📦</div>
+    <h3>No packages found</h3>
+    <p>{{#query}}Try a different search term{{/query}}{{^query}}Publish your first package to get started{{/query}}</p>
+
+    {{^query}}
+    <div class="code-block">
+      <pre><code>dart pub publish --server {{baseUrl}}</code></pre>
+    </div>
+    {{/query}}
+  </div>
+  {{/hasPackages}}
+</section>

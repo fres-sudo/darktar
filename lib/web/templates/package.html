@@ -1,0 +1,96 @@
+<div class="package-detail">
+  <div class="package-hero">
+    <div class="package-title">
+      <h1>{{name}}</h1>
+      <span class="version-badge">v{{latestVersion}}</span>
+      {{#isDiscontinued}}
+      <span class="discontinued-badge">Discontinued</span>
+      {{/isDiscontinued}}
+    </div>
+    <p class="package-description-large">{{description}}</p>
+  </div>
+
+  <div class="package-layout">
+    <div class="package-main">
+      <!-- Installation -->
+      <section class="card">
+        <h2>📦 Installation</h2>
+        <p>Add this to your <code>pubspec.yaml</code>:</p>
+        <div class="code-block">
+          <pre><code>dependencies:
+  {{name}}:
+    hosted: {{baseUrl}}
+    version: ^{{latestVersion}}</code></pre>
+        </div>
+        <p>Then run:</p>
+        <div class="code-block">
+          <pre><code>dart pub get</code></pre>
+        </div>
+      </section>
+
+      <!-- README -->
+      {{#hasReadme}}
+      <section class="card readme-section">
+        <h2>📖 README</h2>
+        <div class="markdown-body">
+          {{{readmeHtml}}}
+        </div>
+      </section>
+      {{/hasReadme}}
+
+      <!-- Changelog -->
+      {{#hasChangelog}}
+      <section class="card">
+        <h2>📝 Changelog</h2>
+        <div class="markdown-body">
+          {{{changelogHtml}}}
+        </div>
+      </section>
+      {{/hasChangelog}}
+    </div>
+
+    <aside class="package-sidebar">
+      <!-- Versions -->
+      <section class="card">
+        <h2>Versions</h2>
+        <ul class="version-list">
+          {{#versions}}
+          <li class="version-item {{#isLatest}}is-latest{{/isLatest}} {{#isRetracted}}is-retracted{{/isRetracted}}">
+            <a href="/packages/{{packageName}}/versions/{{version}}">
+              <span class="version-number">{{version}}</span>
+              <span class="version-date">{{publishedAt}}</span>
+            </a>
+            {{#isRetracted}}<span class="retracted-label">retracted</span>{{/isRetracted}}
+          </li>
+          {{/versions}}
+        </ul>
+      </section>
+
+      <!-- Links -->
+      <section class="card">
+        <h2>Links</h2>
+        <ul class="link-list">
+          <li><a href="/docs/{{name}}/{{latestVersion}}/">📚 API Documentation</a></li>
+          {{#homepage}}<li><a href="{{homepage}}" target="_blank">🏠 Homepage</a></li>{{/homepage}}
+          {{#repository}}<li><a href="{{repository}}" target="_blank">📁 Repository</a></li>{{/repository}}
+          {{#issueTracker}}<li><a href="{{issueTracker}}" target="_blank">🐛 Issue Tracker</a></li>{{/issueTracker}}
+        </ul>
+      </section>
+
+      <!-- Meta -->
+      <section class="card">
+        <h2>Metadata</h2>
+        <dl class="meta-list">
+          <dt>Published</dt>
+          <dd>{{publishedAt}}</dd>
+          <dt>SDK</dt>
+          <dd>{{sdkConstraint}}</dd>
+          {{#license}}
+          <dt>License</dt>
+          <dd>{{license}}</dd>
+          {{/license}}
+        </dl>
+      </section>
+    </aside>
+  </div>
+</div>
