@@ -1,0 +1,35 @@
+# Dependencies
+.dart_tool/
+.packages
+pubspec.lock
+
+# Generated files
+*.g.dart
+*.freezed.dart
+
+# Build output
+build/
+bin/darktar
+
+# Data (local development)
+/data/
+*.db
+*.db-journal
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
