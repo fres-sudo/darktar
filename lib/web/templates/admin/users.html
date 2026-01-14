@@ -1,0 +1,293 @@
+<div class="admin-page-header">
+  <div class="breadcrumb">
+    <a href="/admin">Admin</a>
+    <span>›</span>
+    <span>Users</span>
+  </div>
+  <h1>👥 User Management</h1>
+</div>
+
+<div class="filters-bar">
+  <form method="get" class="filters-form">
+    <input
+      type="text"
+      name="search"
+      placeholder="Search by email or name..."
+      value="{{filters.search}}"
+      class="filter-input"
+    >
+
+    <select name="role" class="filter-select">
+      <option value="">All Roles</option>
+      <option value="user" {{#filters.role}}{{#equals filters.role "user"}}selected{{/equals}}{{/filters.role}}>User</option>
+      <option value="admin" {{#filters.role}}{{#equals filters.role "admin"}}selected{{/equals}}{{/filters.role}}>Admin</option>
+      <option value="super_admin" {{#filters.role}}{{#equals filters.role "super_admin"}}selected{{/equals}}{{/filters.role}}>Super Admin</option>
+    </select>
+
+    <select name="status" class="filter-select">
+      <option value="">All Statuses</option>
+      <option value="active" {{#filters.status}}{{#equals filters.status "active"}}selected{{/equals}}{{/filters.status}}>Active</option>
+      <option value="suspended" {{#filters.status}}{{#equals filters.status "suspended"}}selected{{/equals}}{{/filters.status}}>Suspended</option>
+      <option value="deleted" {{#filters.status}}{{#equals filters.status "deleted"}}selected{{/equals}}{{/filters.status}}>Deleted</option>
+    </select>
+
+    <button type="submit" class="btn-filter">Filter</button>
+    <a href="/admin/users" class="btn-clear">Clear</a>
+  </form>
+</div>
+
+<div class="users-table-container">
+  <table class="users-table">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Display Name</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Last Login</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#users}}
+      <tr>
+        <td>{{email}}</td>
+        <td>{{displayName}}</td>
+        <td>
+          <span class="role-badge role-{{role}}">{{role}}</span>
+        </td>
+        <td>
+          <span class="status-badge status-{{status}}">{{status}}</span>
+        </td>
+        <td class="text-muted">{{lastLoginAt}}</td>
+        <td class="text-muted">{{createdAt}}</td>
+        <td>
+          <div class="action-buttons">
+            <button
+              class="btn-action"
+              hx-get="/api/admin/users/{{id}}"
+              hx-target="#user-modal"
+              hx-swap="innerHTML"
+              onclick="document.getElementById('user-modal').style.display='block'"
+            >
+              Edit
+            </button>
+          </div>
+        </td>
+      </tr>
+      {{/users}}
+      {{^users}}
+      <tr>
+        <td colspan="7" class="empty-state">
+          <p>No users found</p>
+        </td>
+      </tr>
+      {{/users}}
+    </tbody>
+  </table>
+</div>
+
+<!-- User Edit Modal -->
+<div id="user-modal" class="modal" style="display: none;">
+  <!-- Content will be loaded via HTMX -->
+</div>
+
+<style>
+  .filters-bar {
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .filters-form {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+  }
+
+  .filter-input,
+  .filter-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+  }
+
+  .filter-input {
+    flex: 1;
+    min-width: 250px;
+  }
+
+  .filter-select {
+    min-width: 150px;
+  }
+
+  .filter-input:focus,
+  .filter-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .btn-filter,
+  .btn-clear {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-filter {
+    background: var(--color-accent);
+    border: none;
+    color: #000;
+  }
+
+  .btn-filter:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .btn-clear:hover {
+    border-color: var(--color-accent);
+  }
+
+  .users-table-container {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .users-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .users-table thead {
+    background: var(--color-bg-secondary);
+  }
+
+  .users-table th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .users-table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .users-table tbody tr:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .text-muted {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+
+  .role-badge,
+  .status-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .role-super_admin {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+    border: 1px solid #a855f7;
+  }
+
+  .role-admin {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+  }
+
+  .role-user {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+    border: 1px solid #6b7280;
+  }
+
+  .status-active {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid #22c55e;
+  }
+
+  .status-suspended {
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+  }
+
+  .status-deleted {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+  }
+
+  .btn-action {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-action:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--color-text-muted);
+  }
+</style>

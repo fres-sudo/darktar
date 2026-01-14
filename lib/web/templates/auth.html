@@ -1,0 +1,344 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h1>🔐 Get Started</h1>
+    <p class="subtitle">Generate a token to publish and consume private packages</p>
+
+    <form id="auth-form" class="auth-form" hx-post="/api/auth/register" hx-target="#auth-result" hx-swap="innerHTML">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="you@example.com"
+          required
+          class="form-input"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name (optional)</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          placeholder="Your name"
+          class="form-input"
+        >
+      </div>
+
+      <button type="submit" class="btn-primary">
+        Generate Token
+      </button>
+    </form>
+
+    <div id="auth-result"></div>
+
+    <div class="auth-divider">
+      <span>or</span>
+    </div>
+
+    <div class="existing-user">
+      <h3>Already registered?</h3>
+      <form id="token-form" class="auth-form" hx-post="/api/auth/token" hx-target="#auth-result" hx-swap="innerHTML">
+        <div class="form-group">
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+            class="form-input"
+          >
+        </div>
+        <button type="submit" class="btn-secondary">
+          Regenerate Token
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="auth-info">
+    <h2>📖 How to use your token</h2>
+
+    <section class="info-section">
+      <h3>1. Add your token to Dart CLI</h3>
+      <div class="code-block">
+        <pre><code>dart pub token add {{baseUrl}}</code></pre>
+      </div>
+      <p class="info-note">You'll be prompted to enter your token.</p>
+    </section>
+
+    <section class="info-section">
+      <h3>2. Publish a package</h3>
+      <div class="code-block">
+        <pre><code>dart pub publish --server {{baseUrl}}</code></pre>
+      </div>
+    </section>
+
+    <section class="info-section">
+      <h3>3. Consume packages</h3>
+      <p>Add to your <code>pubspec.yaml</code>:</p>
+      <div class="code-block">
+        <pre><code>dependencies:
+  my_package:
+    hosted: {{baseUrl}}
+    version: ^1.0.0</code></pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<template id="token-success">
+  <div class="success-card">
+    <div class="success-icon">✅</div>
+    <h3>Token Generated!</h3>
+    <p>Copy this token and save it securely. It won't be shown again.</p>
+
+    <div class="token-display">
+      <code id="token-value"></code>
+      <button onclick="copyToken()" class="btn-copy">📋 Copy</button>
+    </div>
+
+    <div class="next-steps">
+      <p>Run this command to authenticate:</p>
+      <div class="code-block">
+        <pre><code>dart pub token add {{baseUrl}}</code></pre>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  // Handle form submissions
+  document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target.id === 'auth-result') {
+      try {
+        const data = JSON.parse(evt.detail.xhr.responseText);
+        if (data.token) {
+          const template = document.getElementById('token-success');
+          const clone = template.content.cloneNode(true);
+          clone.getElementById('token-value').textContent = data.token;
+          evt.detail.target.innerHTML = '';
+          evt.detail.target.appendChild(clone);
+        } else if (data.error) {
+          evt.detail.target.innerHTML = '<div class="error-message">⚠️ ' + data.error + '</div>';
+        }
+      } catch (e) {
+        // Not JSON, show as-is
+      }
+    }
+  });
+
+  function copyToken() {
+    const token = document.getElementById('token-value').textContent;
+    navigator.clipboard.writeText(token).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = '📋 Copy', 2000);
+    });
+  }
+</script>
+
+<style>
+  .auth-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-2xl);
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .auth-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .auth-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+  }
+
+  .auth-card h1 {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .form-group label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+  }
+
+  .form-input {
+    padding: var(--spacing-md);
+    font-size: 1rem;
+    font-family: var(--font-sans);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .btn-primary {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--color-accent);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #000;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-secondary {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: 1rem;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--color-accent);
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-xl) 0;
+    color: var(--color-text-muted);
+  }
+
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+
+  .auth-divider span {
+    padding: 0 var(--spacing-md);
+  }
+
+  .existing-user h3 {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .auth-info {
+    padding-top: var(--spacing-lg);
+  }
+
+  .auth-info h2 {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .info-section {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .info-section h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .info-note {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-sm);
+  }
+
+  .success-card {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid #22c55e;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+  }
+
+  .success-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .success-card h3 {
+    color: #22c55e;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .token-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+  }
+
+  .token-display code {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    word-break: break-all;
+  }
+
+  .btn-copy {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .next-steps {
+    margin-top: var(--spacing-lg);
+    text-align: left;
+  }
+
+  .error-message {
+    padding: var(--spacing-md);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    border-radius: var(--radius-md);
+    color: #ef4444;
+  }
+</style>

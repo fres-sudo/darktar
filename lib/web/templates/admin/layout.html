@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{description}}">
+  <title>{{title}} - Darktar Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/theme.css">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <style>
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: 100vh;
+    }
+
+    .admin-sidebar {
+      background: var(--color-bg-secondary);
+      border-right: 1px solid var(--color-border);
+      padding: var(--spacing-xl);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-2xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid #a855f7;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #a855f7;
+    }
+
+    .admin-nav {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+
+    .admin-nav-link {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--radius-md);
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .admin-nav-link:hover {
+      background: var(--color-bg-tertiary);
+      color: var(--color-text-primary);
+    }
+
+    .admin-nav-link.active {
+      background: var(--color-bg-tertiary);
+      color: var(--color-accent);
+      font-weight: 600;
+    }
+
+    .admin-content {
+      padding: var(--spacing-2xl);
+      max-width: 1400px;
+    }
+
+    .admin-page-header {
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .admin-page-header h1 {
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: 0.875rem;
+      color: var(--color-text-muted);
+    }
+
+    .breadcrumb a {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+      color: var(--color-accent);
+    }
+
+    @media (max-width: 768px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-sidebar {
+        position: relative;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <div class="admin-header">
+        <a href="/" style="text-decoration: none; color: inherit;">
+          <span style="font-size: 1.5rem;">📦</span>
+          <span style="font-weight: 700;">Darktar</span>
+        </a>
+        <div class="admin-badge">
+          <span>⚡</span>
+          <span>ADMIN</span>
+        </div>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">
+          <span>📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/admin/users" class="admin-nav-link">
+          <span>👥</span>
+          <span>Users</span>
+        </a>
+        <a href="/admin/packages" class="admin-nav-link">
+          <span>📦</span>
+          <span>Packages</span>
+        </a>
+        <a href="/" class="admin-nav-link" style="margin-top: var(--spacing-lg);">
+          <span>←</span>
+          <span>Back to Site</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="admin-content">
+      {{{content}}}
+    </main>
+  </div>
+
+  <script>
+    // Highlight active nav link
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.admin-nav-link').forEach(link => {
+      if (link.getAttribute('href') === currentPath) {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

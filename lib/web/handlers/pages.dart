@@ -30,11 +30,13 @@ class PageHandlers {
   Template? _layoutTemplate;
   Template? _homeTemplate;
   Template? _packageTemplate;
+  Template? _authTemplate;
 
   /// Registers routes on the provided router.
   void registerRoutes(Router router) {
     router.get('/', homePage);
     router.get('/packages/<name>', packagePage);
+    router.get('/auth', authPage);
   }
 
   /// Home page with package listing.
@@ -165,9 +167,24 @@ class PageHandlers {
         template = _homeTemplate ??= await _loadTemplate('home.html');
       case 'package':
         template = _packageTemplate ??= await _loadTemplate('package.html');
+      case 'auth':
+        template = _authTemplate ??= await _loadTemplate('auth.html');
     }
 
     return template?.renderString(data) ?? '';
+  }
+
+  /// Auth page for token generation.
+  Future<Response> authPage(Request request) async {
+    final content = await _renderTemplate('auth', {
+      'baseUrl': config.effectiveBaseUrl,
+    });
+
+    return _renderPage(
+      title: 'Get Started',
+      description: 'Generate a token to publish and consume private packages',
+      content: content,
+    );
   }
 
   /// Renders a full page with layout.

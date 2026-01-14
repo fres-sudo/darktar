@@ -1,0 +1,243 @@
+<div class="admin-page-header">
+  <div class="breadcrumb">
+    <a href="/admin">Admin</a>
+    <span>›</span>
+    <span>Packages</span>
+  </div>
+  <h1>📦 Package Management</h1>
+</div>
+
+<div class="filters-bar">
+  <form method="get" class="filters-form">
+    <input
+      type="text"
+      name="search"
+      placeholder="Search packages..."
+      value="{{filters.search}}"
+      class="filter-input"
+    >
+    <button type="submit" class="btn-filter">Search</button>
+    <a href="/admin/packages" class="btn-clear">Clear</a>
+  </form>
+</div>
+
+<div class="packages-table-container">
+  <table class="packages-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Versions</th>
+        <th>Uploaders</th>
+        <th>Privacy</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#packages}}
+      <tr>
+        <td>
+          <a href="/packages/{{name}}" class="package-link">{{name}}</a>
+        </td>
+        <td class="text-muted">{{description}}</td>
+        <td>
+          <span class="count-badge">{{versionCount}}</span>
+        </td>
+        <td>
+          <span class="count-badge">{{uploaderCount}}</span>
+        </td>
+        <td>
+          {{#isPrivate}}
+          <span class="privacy-badge private">🔒 Private</span>
+          {{/isPrivate}}
+          {{^isPrivate}}
+          <span class="privacy-badge public">🌐 Public</span>
+          {{/isPrivate}}
+        </td>
+        <td class="text-muted">{{createdAt}}</td>
+        <td>
+          <button class="btn-action">
+            Manage Uploaders
+          </button>
+        </td>
+      </tr>
+      {{/packages}}
+      {{^packages}}
+      <tr>
+        <td colspan="7" class="empty-state">
+          <p>No packages found</p>
+        </td>
+      </tr>
+      {{/packages}}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .filters-bar {
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .filters-form {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+  }
+
+  .filter-input {
+    flex: 1;
+    min-width: 300px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+  }
+
+  .filter-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .btn-filter,
+  .btn-clear {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .btn-filter {
+    background: var(--color-accent);
+    border: none;
+    color: #000;
+  }
+
+  .btn-filter:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-clear {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .btn-clear:hover {
+    border-color: var(--color-accent);
+  }
+
+  .packages-table-container {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .packages-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .packages-table thead {
+    background: var(--color-bg-secondary);
+  }
+
+  .packages-table th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .packages-table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .packages-table tbody tr:hover {
+    background: var(--color-bg-secondary);
+  }
+
+  .package-link {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .package-link:hover {
+    text-decoration: underline;
+  }
+
+  .text-muted {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+
+  .count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .privacy-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .privacy-badge.private {
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+  }
+
+  .privacy-badge.public {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid #22c55e;
+  }
+
+  .btn-action {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-action:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--color-text-muted);
+  }
+</style>

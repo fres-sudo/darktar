@@ -1,0 +1,172 @@
+<div class="admin-page-header">
+  <div class="breadcrumb">
+    <a href="/admin">Admin</a>
+    <span>›</span>
+    <span>Dashboard</span>
+  </div>
+  <h1>📊 Dashboard</h1>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">📦</div>
+    <div class="stat-content">
+      <div class="stat-value">{{stats.packages}}</div>
+      <div class="stat-label">Total Packages</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-content">
+      <div class="stat-value">{{stats.users}}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-content">
+      <div class="stat-value">{{stats.activeUsers}}</div>
+      <div class="stat-label">Active Users</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon">⚡</div>
+    <div class="stat-content">
+      <div class="stat-value">{{stats.adminUsers}}</div>
+      <div class="stat-label">Admin Users</div>
+    </div>
+  </div>
+</div>
+
+<div class="recent-activity">
+  <h2>Recent Activity</h2>
+  <div class="activity-list">
+    {{#recentLogs}}
+    <div class="activity-item">
+      <div class="activity-icon">📋</div>
+      <div class="activity-content">
+        <div class="activity-action">{{action}}</div>
+        <div class="activity-meta">
+          <span>{{resourceType}}</span>
+          {{#resourceId}}
+          <span>·</span>
+          <span>ID: {{resourceId}}</span>
+          {{/resourceId}}
+          <span>·</span>
+          <span>{{createdAt}}</span>
+        </div>
+      </div>
+    </div>
+    {{/recentLogs}}
+    {{^recentLogs}}
+    <div class="empty-state">
+      <p>No recent activity</p>
+    </div>
+    {{/recentLogs}}
+  </div>
+</div>
+
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-xl);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+  }
+
+  .stat-content {
+    flex: 1;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+  }
+
+  .recent-activity {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+  }
+
+  .recent-activity h2 {
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.25rem;
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+  }
+
+  .activity-icon {
+    font-size: 1.25rem;
+    opacity: 0.7;
+  }
+
+  .activity-content {
+    flex: 1;
+  }
+
+  .activity-action {
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .activity-meta {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    color: var(--color-text-muted);
+  }
+</style>
