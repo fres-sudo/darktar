@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:darktar/data/database.dart';
 import 'package:darktar/data/repositories/user_repository.dart';
 import 'package:darktar/data/result.dart';
@@ -30,9 +32,22 @@ Middleware authMiddleware(DarktarDatabase db) {
       final userResult = await userRepository.getByToken(token);
 
       return switch (userResult) {
-        Ok(value: final user) => innerHandler(
-            request.change(context: {'user': user}),
-          ),
+        Ok(value: final user) => () async {
+            // Check if user is active
+            if (user.status != 'active') {
+              return Response.unauthorized(
+                '{"error":"User account is ${user.status}"}',
+                headers: {'Content-Type': 'application/json'},
+              );
+            }
+
+            // Record login time (fire and forget)
+            unawaited(userRepository.recordLogin(user.id));
+
+            return await innerHandler(
+              request.change(context: {'user': user}),
+            );
+          }(),
         Error() => Response.unauthorized(
             '{"error":"Invalid token"}',
             headers: {'Content-Type': 'application/json'},
@@ -59,6 +74,34 @@ bool _isPublicPath(String path) {
   return false;
 }
 
+/// Middleware that requires admin role.
+Middleware requireAdmin() {
+  return (Handler innerHandler) {
+    return (Request request) {
+      final user = request.user;
+
+      if (user == null) {
+        return Response.unauthorized(
+          '{"error":"Authentication required"}',
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      final isAdmin =
+          user.isAdmin || user.role == 'admin' || user.role == 'super_admin';
+
+      if (!isAdmin) {
+        return Response.forbidden(
+          '{"error":"Admin access required"}',
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      return innerHandler(request);
+    };
+  };
+}
+
 /// Extension to extract user from request context.
 extension AuthRequestX on Request {
   /// Gets the authenticated user from the request context.
@@ -66,4 +109,18 @@ extension AuthRequestX on Request {
 
   /// Returns true if the request is authenticated.
   bool get isAuthenticated => user != null;
+
+  /// Returns true if the user is an admin.
+  bool get isAdmin {
+    final u = user;
+    if (u == null) return false;
+    return u.isAdmin || u.role == 'admin' || u.role == 'super_admin';
+  }
+
+  /// Returns true if the user is a super admin.
+  bool get isSuperAdmin {
+    final u = user;
+    if (u == null) return false;
+    return u.role == 'super_admin';
+  }
 }
