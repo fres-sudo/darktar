@@ -11,9 +11,13 @@ import 'package:yaml/yaml.dart';
 import 'package:darktar/api/middleware/auth.dart';
 import 'package:darktar/config/env.dart';
 import 'package:darktar/data/database.dart';
+import 'package:darktar/data/repositories/audit_log_repository.dart';
 import 'package:darktar/data/repositories/package_repository.dart';
+import 'package:darktar/data/repositories/package_uploader_repository.dart';
 import 'package:darktar/data/repositories/version_repository.dart';
 import 'package:darktar/data/result.dart';
+import 'package:darktar/jobs/doc_generator_job.dart';
+import 'package:darktar/jobs/job_queue.dart';
 import 'package:darktar/storage/blob_storage.dart';
 
 /// Handlers for the Pub API package endpoints.
@@ -22,14 +26,20 @@ class PackageHandlers {
     required this.db,
     required this.storage,
     required this.config,
+    required this.jobQueue,
   })  : packageRepository = PackageRepository(db),
-        versionRepository = VersionRepository(db);
+        versionRepository = VersionRepository(db),
+        packageUploaderRepository = PackageUploaderRepository(db),
+        auditLogRepository = AuditLogRepository(db);
 
   final DarktarDatabase db;
   final BlobStorage storage;
   final EnvConfig config;
+  final JobQueue jobQueue;
   final PackageRepository packageRepository;
   final VersionRepository versionRepository;
+  final PackageUploaderRepository packageUploaderRepository;
+  final AuditLogRepository auditLogRepository;
 
   /// Registers routes on the provided router.
   void registerRoutes(Router router) {
@@ -44,6 +54,26 @@ class PackageHandlers {
     router.get('/api/packages/versions/new', getUploadUrl);
     router.post('/api/packages/versions/newUpload', uploadPackage);
     router.get('/api/packages/versions/newUploadFinish', finishUpload);
+  }
+
+  /// Helper function to log package actions.
+  Future<void> _logAction({
+    required Request request,
+    required String action,
+    required String resourceType,
+    int? resourceId,
+  }) async {
+    final user = request.user;
+    await auditLogRepository.create(
+      userId: user?.id,
+      action: action,
+      resourceType: resourceType,
+      resourceId: resourceId,
+      ipAddress: request.headers['x-forwarded-for'] ??
+          request.headers['x-real-ip'] ??
+          'unknown',
+      userAgent: request.headers['user-agent'],
+    );
   }
 
   /// GET /api/packages/<name>
@@ -182,14 +212,43 @@ class PackageHandlers {
         Ok(value: final pubspec) => () async {
             final name = pubspec['name'] as String;
             final version = pubspec['version'] as String;
+            final user = request.user;
+            if (user == null) {
+              return Response.unauthorized(
+                '{"error":"Authentication required"}',
+                headers: {'Content-Type': 'application/json'},
+              );
+            }
 
             // Get or create the package
             var packageResult = await packageRepository.getByName(name);
             Package package;
+            bool isNewPackage = false;
 
             switch (packageResult) {
               case Ok(value: final existingPackage):
                 package = existingPackage;
+                // Check if user can publish to this package
+                final isAdmin = user.isAdmin ||
+                    user.role == 'admin' ||
+                    user.role == 'super_admin';
+                if (!isAdmin) {
+                  final canPublishResult =
+                      await packageUploaderRepository.canPublish(
+                    packageId: package.id,
+                    userId: user.id,
+                  );
+                  final canPublish = switch (canPublishResult) {
+                    Ok(value: final can) => can,
+                    Error() => false,
+                  };
+                  if (!canPublish) {
+                    return Response.forbidden(
+                      '{"error":"You do not have permission to publish to this package"}',
+                      headers: {'Content-Type': 'application/json'},
+                    );
+                  }
+                }
               case Error():
                 // Create new package
                 final createResult = await packageRepository.create(
@@ -199,6 +258,7 @@ class PackageHandlers {
                 switch (createResult) {
                   case Ok(value: final newPackage):
                     package = newPackage;
+                    isNewPackage = true;
                   case Error(error: final e):
                     return Response.internalServerError(
                       body: '{"error":"Failed to create package: $e"}',
@@ -214,6 +274,14 @@ class PackageHandlers {
             final archivePath = _getArchivePath(name, version);
             await storage.store(archivePath, archive);
 
+            // Add user as uploader if this is a new package
+            if (isNewPackage) {
+              await packageUploaderRepository.addUploader(
+                packageId: package.id,
+                userId: user.id,
+              );
+            }
+
             // Create the version
             final archiveUrl =
                 '${config.effectiveBaseUrl}/packages/$name/versions/$version.tar.gz';
@@ -224,17 +292,44 @@ class PackageHandlers {
               pubspecYaml: _extractPubspecYaml(archive) ?? '',
               archiveUrl: archiveUrl,
               archiveSha256: sha256Hash,
+              readme: _extractFile(archive, 'README.md'),
+              changelog: _extractFile(archive, 'CHANGELOG.md'),
             );
 
-            return switch (versionResult) {
-              Ok() => Response.ok(
-                  jsonEncode({
-                    'success': {
-                      'message': 'Successfully uploaded $name@$version',
-                    },
-                  }),
-                  headers: {'Content-Type': 'application/json'},
+            // Enqueue documentation generation
+            if (versionResult.isSuccess) {
+              jobQueue.enqueue(
+                DocGeneratorJob(
+                  packageName: name,
+                  version: version,
+                  storage: storage,
+                  docsOutputPath: config.docsPath,
+                  themeDir: 'lib/web/static/css',
                 ),
+              );
+            }
+
+            return switch (versionResult) {
+              Ok() => () async {
+                  // Log the action
+                  await _logAction(
+                    request: request,
+                    action: isNewPackage
+                        ? 'package.publish'
+                        : 'package.version.publish',
+                    resourceType: isNewPackage ? 'package' : 'version',
+                    resourceId: package.id,
+                  );
+
+                  return Response.ok(
+                    jsonEncode({
+                      'success': {
+                        'message': 'Successfully uploaded $name@$version',
+                      },
+                    }),
+                    headers: {'Content-Type': 'application/json'},
+                  );
+                }(),
               Error(error: final e) => Response(
                   HttpStatus.conflict,
                   body: '{"error":"${e.toString()}"}',
@@ -260,7 +355,9 @@ class PackageHandlers {
   /// Finalizes the upload (for compatibility).
   Future<Response> finishUpload(Request request) async {
     return Response.ok(
-      jsonEncode({'success': {'message': 'Upload finalized'}}),
+      jsonEncode({
+        'success': {'message': 'Upload finalized'}
+      }),
       headers: {'Content-Type': 'application/json'},
     );
   }
@@ -278,12 +375,14 @@ class PackageHandlers {
       'name': package.name,
       'isDiscontinued': package.isDiscontinued,
       if (package.replacedBy != null) 'replacedBy': package.replacedBy,
-      'versions': versions.map((v) => _buildVersionResponse(package.name, v)).toList(),
+      'versions':
+          versions.map((v) => _buildVersionResponse(package.name, v)).toList(),
     };
   }
 
   /// Builds the Pub API response for a version.
-  Map<String, dynamic> _buildVersionResponse(String packageName, Version version) {
+  Map<String, dynamic> _buildVersionResponse(
+      String packageName, Version version) {
     return {
       'version': version.version,
       'pubspec': _parsePubspec(version.pubspecYaml),
@@ -313,7 +412,8 @@ class PackageHandlers {
       // Find pubspec.yaml
       ArchiveFile? pubspecFile;
       for (final file in archive.files) {
-        if (file.name == 'pubspec.yaml' || file.name.endsWith('/pubspec.yaml')) {
+        if (file.name == 'pubspec.yaml' ||
+            file.name.endsWith('/pubspec.yaml')) {
           pubspecFile = file;
           break;
         }
@@ -363,7 +463,25 @@ class PackageHandlers {
       final archive = TarDecoder().decodeBytes(gzDecoded);
 
       for (final file in archive.files) {
-        if (file.name == 'pubspec.yaml' || file.name.endsWith('/pubspec.yaml')) {
+        if (file.name == 'pubspec.yaml' ||
+            file.name.endsWith('/pubspec.yaml')) {
+          return utf8.decode(file.content as List<int>);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Extracts a file by name from the archive.
+  String? _extractFile(Uint8List bytes, String filename) {
+    try {
+      final gzDecoded = GZipDecoder().decodeBytes(bytes);
+      final archive = TarDecoder().decodeBytes(gzDecoded);
+
+      for (final file in archive.files) {
+        if (file.name == filename || file.name.endsWith('/$filename')) {
           return utf8.decode(file.content as List<int>);
         }
       }

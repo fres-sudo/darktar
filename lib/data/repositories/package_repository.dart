@@ -108,10 +108,10 @@ class PackageRepository {
     try {
       await (_db.update(_db.packages)..where((p) => p.id.equals(id))).write(
         PackagesCompanion(
-          description: description != null ? Value(description) : const Value.absent(),
+          description: description != null ? Value(description) : Value.absent(),
           isDiscontinued:
-              isDiscontinued != null ? Value(isDiscontinued) : const Value.absent(),
-          replacedBy: replacedBy != null ? Value(replacedBy) : const Value.absent(),
+              isDiscontinued != null ? Value(isDiscontinued) : Value.absent(),
+          replacedBy: replacedBy != null ? Value(replacedBy) : Value.absent(),
           updatedAt: Value(DateTime.now()),
         ),
       );
