@@ -1,17 +1,20 @@
 import 'dart:io';
 
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:shelf_router/shelf_router.dart';
-import 'package:shelf_static/shelf_static.dart';
-
+import 'package:darktar/api/handlers/admin.dart';
+import 'package:darktar/api/handlers/auth.dart';
 import 'package:darktar/api/handlers/packages.dart';
 import 'package:darktar/api/middleware/auth.dart';
 import 'package:darktar/config/env.dart';
 import 'package:darktar/data/database.dart';
+import 'package:darktar/jobs/job_queue.dart';
 import 'package:darktar/storage/blob_storage.dart';
 import 'package:darktar/storage/file_system_storage.dart';
+import 'package:darktar/web/handlers/admin_pages.dart';
 import 'package:darktar/web/handlers/pages.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf_static/shelf_static.dart';
 
 /// The main Darktar server.
 ///
@@ -23,6 +26,7 @@ class DarktarServer {
   HttpServer? _server;
   late final DarktarDatabase _db;
   late final BlobStorage _storage;
+  late final JobQueue _jobQueue;
 
   /// Starts the HTTP server.
   Future<void> start() async {
@@ -32,14 +36,23 @@ class DarktarServer {
     // Initialize storage
     _storage = FileSystemStorage(config.storagePath);
 
-    // Ensure storage directory exists
+    // Initialize job queue
+    _jobQueue = JobQueue();
+    _setupJobLogging();
+
+    // Ensure directories exist
     await Directory(config.storagePath).create(recursive: true);
+    await Directory(config.docsPath).create(recursive: true);
 
     // Build handlers
+    final authHandlers = AuthHandlers(db: _db);
+    final adminHandlers = AdminHandlers(db: _db);
+
     final packageHandlers = PackageHandlers(
       db: _db,
       storage: _storage,
       config: config,
+      jobQueue: _jobQueue,
     );
 
     final pageHandlers = PageHandlers(
@@ -48,7 +61,19 @@ class DarktarServer {
       templateDir: _getTemplateDir(),
     );
 
-    final router = _buildRouter(packageHandlers, pageHandlers);
+    final adminPageHandlers = AdminPageHandlers(
+      db: _db,
+      config: config,
+      templateDir: _getTemplateDir(),
+    );
+
+    final router = _buildRouter(
+      authHandlers,
+      adminHandlers,
+      packageHandlers,
+      pageHandlers,
+      adminPageHandlers,
+    );
 
     final handler = const Pipeline()
         .addMiddleware(logRequests())
@@ -69,15 +94,35 @@ class DarktarServer {
 
   /// Stops the HTTP server.
   Future<void> stop() async {
+    await _jobQueue.shutdown();
     await _server?.close(force: true);
     await _db.close();
     stdout.writeln('👋 Darktar stopped.');
   }
 
+  /// Sets up logging for job events.
+  void _setupJobLogging() {
+    _jobQueue.events.listen((event) {
+      switch (event) {
+        case JobEnqueued():
+          stdout.writeln('📋 Job enqueued: ${event.job}');
+        case JobStarted():
+          stdout.writeln('▶️  Job started: ${event.job}');
+        case JobCompleted():
+          stdout.writeln('✅ Job completed: ${event.job}');
+        case JobFailed():
+          stderr.writeln('❌ Job failed: ${event.job} - ${event.error}');
+      }
+    });
+  }
+
   /// Builds the main router with all routes.
   Router _buildRouter(
+    AuthHandlers authHandlers,
+    AdminHandlers adminHandlers,
     PackageHandlers packageHandlers,
     PageHandlers pageHandlers,
+    AdminPageHandlers adminPageHandlers,
   ) {
     final router = Router();
 
@@ -85,7 +130,24 @@ class DarktarServer {
     router.get('/health', _healthHandler);
 
     // Register API routes
+    authHandlers.registerRoutes(router);
     packageHandlers.registerRoutes(router);
+
+    // Register Admin API routes with admin middleware protection
+    final adminRouter = Router();
+    adminHandlers.registerRoutes(adminRouter);
+    router.mount(
+      '/api/admin',
+      Pipeline().addMiddleware(requireAdmin()).addHandler(adminRouter.call),
+    );
+
+    // Register Admin Page routes with admin middleware protection
+    final adminPageRouter = Router();
+    adminPageHandlers.registerRoutes(adminPageRouter);
+    router.mount(
+      '/admin',
+      Pipeline().addMiddleware(requireAdmin()).addHandler(adminPageRouter.call),
+    );
 
     // Register Web UI routes
     pageHandlers.registerRoutes(router);
@@ -97,6 +159,16 @@ class DarktarServer {
     );
     router.mount('/static/', staticHandler);
 
+    // Documentation serving (generated docs)
+    final docsDir = _getDocsDir();
+    if (Directory(docsDir).existsSync()) {
+      final docsHandler = createStaticHandler(
+        docsDir,
+        defaultDocument: 'index.html',
+      );
+      router.mount('/docs/', docsHandler);
+    }
+
     // Catch-all for 404
     router.all('/<ignored|.*>', _notFoundHandler);
 
@@ -106,7 +178,7 @@ class DarktarServer {
   /// Health check handler.
   Response _healthHandler(Request request) {
     return Response.ok(
-      '{"status":"ok","version":"0.1.0","timestamp":"${DateTime.now().toUtc().toIso8601String()}"}',
+      '{"status":"ok","version":"0.1.0","timestamp":"${DateTime.now().toUtc().toIso8601String()}","jobs":{"pending":${_jobQueue.pendingCount},"running":${_jobQueue.runningCount}}}',
       headers: {'Content-Type': 'application/json'},
     );
   }
@@ -114,7 +186,8 @@ class DarktarServer {
   /// 404 handler.
   Response _notFoundHandler(Request request) {
     // Return JSON for API requests, HTML for browser
-    final acceptsHtml = request.headers['accept']?.contains('text/html') ?? false;
+    final acceptsHtml =
+        request.headers['accept']?.contains('text/html') ?? false;
 
     if (acceptsHtml) {
       return Response.notFound(
@@ -166,8 +239,6 @@ class DarktarServer {
 
   /// Gets the template directory path.
   String _getTemplateDir() {
-    // In development, use the lib/web/templates directory
-    // In production (Docker), templates are copied to /app/templates
     const devPath = 'lib/web/templates';
     const prodPath = '/app/templates';
 
@@ -186,5 +257,13 @@ class DarktarServer {
       return prodPath;
     }
     return devPath;
+  }
+
+  /// Gets the generated docs directory path.
+  String _getDocsDir() {
+    if (Directory('/app/docs').existsSync()) {
+      return '/app/docs';
+    }
+    return config.docsPath;
   }
 }

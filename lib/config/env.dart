@@ -11,6 +11,7 @@ class EnvConfig {
     required this.storagePath,
     required this.adminToken,
     required this.databasePath,
+    required this.docsPath,
     this.baseUrl,
   });
 
@@ -28,6 +29,9 @@ class EnvConfig {
 
   /// Path to the SQLite database file.
   final String databasePath;
+
+  /// Path to store generated documentation.
+  final String docsPath;
 
   /// Optional base URL for the server (used in API responses).
   final String? baseUrl;
@@ -50,6 +54,9 @@ class EnvConfig {
     final databasePath =
         Platform.environment['DARKTAR_DATABASE_PATH'] ?? './data/darktar.db';
 
+    final docsPath =
+        Platform.environment['DARKTAR_DOCS_PATH'] ?? './data/docs';
+
     final baseUrl = Platform.environment['DARKTAR_BASE_URL'];
 
     return EnvConfig(
@@ -58,6 +65,7 @@ class EnvConfig {
       storagePath: storagePath,
       adminToken: adminToken,
       databasePath: databasePath,
+      docsPath: docsPath,
       baseUrl: baseUrl,
     );
   }
@@ -74,3 +82,4 @@ class EnvConfig {
   /// Returns the effective base URL for this server.
   String get effectiveBaseUrl => baseUrl ?? 'http://$host:$port';
 }
+
