@@ -17,6 +17,11 @@ class Users extends Table {
   TextColumn get token => text().unique()();
   TextColumn get displayName => text().nullable()();
   BoolColumn get isAdmin => boolean().withDefault(const Constant(false))();
+  TextColumn get role => text()
+      .withDefault(const Constant('user'))(); // 'super_admin', 'admin', 'user'
+  TextColumn get status => text().withDefault(
+      const Constant('active'))(); // 'active', 'suspended', 'deleted'
+  DateTimeColumn get lastLoginAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().nullable()();
 }
@@ -29,6 +34,7 @@ class Packages extends Table {
   BoolColumn get isDiscontinued =>
       boolean().withDefault(const Constant(false))();
   TextColumn get replacedBy => text().nullable()();
+  BoolColumn get isPrivate => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().nullable()();
 }
@@ -57,15 +63,27 @@ class Versions extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-    {packageId, version},
-  ];
+        {packageId, version},
+      ];
+}
+
+/// Audit logs table for tracking all system actions.
+class AuditLogs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get userId => integer().nullable()();
+  TextColumn get action => text()(); // 'package.publish', 'user.create', etc.
+  TextColumn get resourceType => text()(); // 'package', 'user', 'version'
+  IntColumn get resourceId => integer().nullable()();
+  TextColumn get ipAddress => text().nullable()();
+  TextColumn get userAgent => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 // =============================================================================
 // Database
 // =============================================================================
 
-@DriftDatabase(tables: [Users, Packages, PackageUploaders, Versions])
+@DriftDatabase(tables: [Users, Packages, PackageUploaders, Versions, AuditLogs])
 class DarktarDatabase extends _$DarktarDatabase {
   DarktarDatabase(super.e);
 
@@ -75,7 +93,7 @@ class DarktarDatabase extends _$DarktarDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -84,7 +102,22 @@ class DarktarDatabase extends _$DarktarDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Handle future migrations here
+        if (from < 2) {
+          // Add new columns to Users table
+          await m.addColumn(users, users.role);
+          await m.addColumn(users, users.status);
+          await m.addColumn(users, users.lastLoginAt);
+
+          // Add isPrivate to Packages table
+          await m.addColumn(packages, packages.isPrivate);
+
+          // Create AuditLogs table
+          await m.createTable(auditLogs);
+
+          // Note: Existing users will have role='user' by default.
+          // To migrate isAdmin to role, run this manually:
+          // UPDATE users SET role = CASE WHEN is_admin = 1 THEN 'admin' ELSE 'user' END
+        }
       },
     );
   }
