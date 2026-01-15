@@ -69,6 +69,7 @@ class PageHandlers {
 
         final content = await _renderTemplate('home', {
           'query': query ?? '',
+          'hasQuery': query != null && query.isNotEmpty,
           'packages': packageData,
           'hasPackages': packageData.isNotEmpty,
           'packageCount': packageData.length,
@@ -146,7 +147,8 @@ class PageHandlers {
             );
 
           case Error():
-            return Response.internalServerError(body: 'Failed to load versions');
+            return Response.internalServerError(
+                body: 'Failed to load versions');
         }
 
       case Error():

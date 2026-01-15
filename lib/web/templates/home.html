@@ -22,7 +22,7 @@
 
 <section class="packages-section">
   <div class="section-header">
-    <h2>{{#query}}Results for "{{query}}"{{/query}}{{^query}}Recent Packages{{/query}}</h2>
+    <h2>{{#hasQuery}}Results for "{{query}}"{{/hasQuery}}{{^hasQuery}}Recent Packages{{/hasQuery}}</h2>
     <span class="package-count">{{packageCount}} package{{#hasMultiple}}s{{/hasMultiple}}</span>
   </div>
 
@@ -47,13 +47,13 @@
   <div class="empty-state">
     <div class="empty-icon">📦</div>
     <h3>No packages found</h3>
-    <p>{{#query}}Try a different search term{{/query}}{{^query}}Publish your first package to get started{{/query}}</p>
+    <p>{{#hasQuery}}Try a different search term{{/hasQuery}}{{^hasQuery}}Publish your first package to get started{{/hasQuery}}</p>
 
-    {{^query}}
+    {{^hasQuery}}
     <div class="code-block">
       <pre><code>dart pub publish --server {{baseUrl}}</code></pre>
     </div>
-    {{/query}}
+    {{/hasQuery}}
   </div>
   {{/hasPackages}}
 </section>
