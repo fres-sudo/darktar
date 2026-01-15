@@ -109,22 +109,63 @@
 </template>
 
 <script>
-  // Handle form submissions
+  // Configure HTMX to swap on all status codes (including errors)
+  document.body.addEventListener('htmx:beforeSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'auth-result') {
+      // Allow swap even on error status codes
+      if (evt.detail.xhr.status >= 400) {
+        evt.detail.shouldSwap = true;
+        evt.detail.isError = false; // Treat as non-error so swap happens
+      }
+    }
+  });
+
+  // Handle form submissions - works for both success and error responses
   document.body.addEventListener('htmx:afterSwap', function(evt) {
     if (evt.detail.target.id === 'auth-result') {
+      const xhr = evt.detail.xhr;
       try {
-        const data = JSON.parse(evt.detail.xhr.responseText);
+        const data = JSON.parse(xhr.responseText);
         if (data.token) {
+          // Success: show token
           const template = document.getElementById('token-success');
           const clone = template.content.cloneNode(true);
           clone.getElementById('token-value').textContent = data.token;
           evt.detail.target.innerHTML = '';
           evt.detail.target.appendChild(clone);
         } else if (data.error) {
+          // Error: show error message
           evt.detail.target.innerHTML = '<div class="error-message">⚠️ ' + data.error + '</div>';
         }
       } catch (e) {
-        // Not JSON, show as-is
+        // If response is not JSON or parsing fails, check status code
+        if (xhr.status >= 400) {
+          try {
+            // Try to parse as JSON one more time
+            const data = JSON.parse(xhr.responseText);
+            if (data.error) {
+              evt.detail.target.innerHTML = '<div class="error-message">⚠️ ' + data.error + '</div>';
+            }
+          } catch (e2) {
+            // Not JSON, show generic error
+            evt.detail.target.innerHTML = '<div class="error-message">⚠️ An error occurred. Please try again.</div>';
+          }
+        }
+      }
+    }
+  });
+
+  // Also handle cases where HTMX doesn't swap on error
+  document.body.addEventListener('htmx:responseError', function(evt) {
+    const target = evt.detail.target || document.getElementById('auth-result');
+    if (target && target.id === 'auth-result') {
+      try {
+        const data = JSON.parse(evt.detail.xhr.responseText);
+        if (data.error) {
+          target.innerHTML = '<div class="error-message">⚠️ ' + data.error + '</div>';
+        }
+      } catch (e) {
+        target.innerHTML = '<div class="error-message">⚠️ An error occurred. Please try again.</div>';
       }
     }
   });
@@ -288,6 +329,7 @@
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
     text-align: center;
+    margin-top: var(--spacing-xl);
   }
 
   .success-icon {
@@ -340,5 +382,6 @@
     border: 1px solid #ef4444;
     border-radius: var(--radius-md);
     color: #ef4444;
+    margin-top: var(--spacing-xl);
   }
 </style>
