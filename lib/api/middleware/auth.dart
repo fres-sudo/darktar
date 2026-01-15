@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:darktar/data/database.dart';
 import 'package:darktar/data/repositories/user_repository.dart';
 import 'package:darktar/data/result.dart';
 import 'package:shelf/shelf.dart';
 
-/// Authentication middleware for Bearer token validation.
+/// Authentication middleware for Bearer token and Basic Auth validation.
 ///
 /// Validates the Authorization header and adds user information to the request context.
+/// Supports both Bearer tokens (for API) and Basic Auth (for Pub protocol).
 Middleware authMiddleware(DarktarDatabase db) {
   final userRepository = UserRepository(db);
 
@@ -20,14 +22,55 @@ Middleware authMiddleware(DarktarDatabase db) {
 
       final authHeader = request.headers['authorization'];
 
-      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+      if (authHeader == null) {
         return Response.unauthorized(
-          '{"error":"Missing or invalid Authorization header"}',
+          '{"error":"Missing Authorization header"}',
           headers: {'Content-Type': 'application/json'},
         );
       }
 
-      final token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      String? token;
+
+      // Try Bearer token first
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
+      // Try Basic Auth (used by dart pub publish)
+      else if (authHeader.startsWith('Basic ')) {
+        try {
+          final encoded = authHeader.substring(6); // Remove 'Basic ' prefix
+          final decoded = utf8.decode(base64Decode(encoded));
+          // Basic Auth format: "username:password" or ":token" or "token:"
+          final parts = decoded.split(':');
+          // For Pub protocol, token is typically the password (second part)
+          // or the entire string if there's no colon
+          if (parts.length == 2) {
+            // Use the non-empty part (either username or password)
+            token = parts[0].isEmpty ? parts[1] : parts[0];
+          } else {
+            // No colon, use the entire decoded string as token
+            token = decoded;
+          }
+        } catch (e) {
+          return Response.unauthorized(
+            '{"error":"Invalid Basic Auth encoding"}',
+            headers: {'Content-Type': 'application/json'},
+          );
+        }
+      } else {
+        return Response.unauthorized(
+          '{"error":"Unsupported Authorization method. Use Bearer or Basic"}',
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      // At this point, token should be set, but verify it's not empty
+      if (token.isEmpty) {
+        return Response.unauthorized(
+          '{"error":"Token not found in Authorization header"}',
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
 
       final userResult = await userRepository.getByToken(token);
 
@@ -59,16 +102,36 @@ Middleware authMiddleware(DarktarDatabase db) {
 
 /// Checks if a path is public (doesn't require auth).
 bool _isPublicPath(String path) {
+  // Root path is public
+  if (path == '' || path == '/') {
+    return true;
+  }
+
+  // Remove leading slash for matching
+  final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+
   const publicPaths = [
     'health',
     'api/packages', // GET is public, POST requires auth (handled separately)
-    'packages', // Archive downloads are public in most registries
+    'packages', // Archive downloads and web UI package pages
+    'auth', // Auth page for token generation
+    'static', // Static assets
+    'docs', // Documentation
+    'api/auth/register', // User registration
+    'api/auth/token', // Token generation
   ];
 
   for (final publicPath in publicPaths) {
-    if (path == publicPath || path.startsWith('$publicPath/')) {
+    if (normalizedPath == publicPath ||
+        normalizedPath.startsWith('$publicPath/')) {
       return true;
     }
+  }
+
+  // Allow web UI routes (not API routes) to be public
+  // API routes start with /api/ and should require auth (except those listed above)
+  if (!normalizedPath.startsWith('api/')) {
+    return true;
   }
 
   return false;
