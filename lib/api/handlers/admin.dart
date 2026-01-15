@@ -52,7 +52,7 @@ class AdminHandlers {
     required String resourceType,
     int? resourceId,
   }) async {
-    final user = request.user;
+    final user = request.context['user'] as User?;
     await auditLogRepository.create(
       userId: user?.id,
       action: action,
@@ -155,7 +155,8 @@ class AdminHandlers {
             final roleChanged = data['role'] != null;
             await _logAction(
               request: request,
-              action: roleChanged ? 'admin.user.role_change' : 'admin.user.update',
+              action:
+                  roleChanged ? 'admin.user.role_change' : 'admin.user.update',
               resourceType: 'user',
               resourceId: userId,
             );
