@@ -22,13 +22,53 @@ class AuthHandlers {
     router.get('/api/auth/me', getCurrentUser);
   }
 
+  /// Parses the request body as either JSON or form-encoded data.
+  Future<Map<String, dynamic>> _parseRequestBody(Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    final body = await request.readAsString();
+
+    if (contentType.contains('application/json')) {
+      return jsonDecode(body) as Map<String, dynamic>;
+    } else if (contentType.contains('application/x-www-form-urlencoded')) {
+      // Parse URL-encoded form data
+      final formData = <String, dynamic>{};
+      final pairs = body.split('&');
+      for (final pair in pairs) {
+        final parts = pair.split('=');
+        if (parts.length == 2) {
+          final key = Uri.decodeComponent(parts[0]);
+          final value = Uri.decodeComponent(parts[1]);
+          formData[key] = value;
+        }
+      }
+      return formData;
+    } else {
+      // Try JSON first, fallback to form-encoded
+      try {
+        return jsonDecode(body) as Map<String, dynamic>;
+      } catch (_) {
+        // Parse as form-encoded
+        final formData = <String, dynamic>{};
+        final pairs = body.split('&');
+        for (final pair in pairs) {
+          final parts = pair.split('=');
+          if (parts.length == 2) {
+            final key = Uri.decodeComponent(parts[0]);
+            final value = Uri.decodeComponent(parts[1]);
+            formData[key] = value;
+          }
+        }
+        return formData;
+      }
+    }
+  }
+
   /// POST /api/auth/register
   ///
   /// Registers a new user and returns their token.
   Future<Response> register(Request request) async {
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _parseRequestBody(request);
 
       final email = data['email'] as String?;
       final name = data['name'] as String?;
@@ -86,8 +126,7 @@ class AuthHandlers {
   /// Generates a new token for an existing user.
   Future<Response> generateToken(Request request) async {
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _parseRequestBody(request);
 
       final email = data['email'] as String?;
 
