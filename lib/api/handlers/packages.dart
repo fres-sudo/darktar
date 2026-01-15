@@ -341,7 +341,7 @@ class PackageHandlers {
             body: '{"error":"Invalid package: ${e.toString()}"}',
             headers: {'Content-Type': 'application/json'},
           ),
-      };
+      } as Response;
     } on Exception catch (e) {
       return Response.internalServerError(
         body: '{"error":"Upload failed: $e"}',
